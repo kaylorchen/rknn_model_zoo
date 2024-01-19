@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 
 project(rknn_yolov8_demo)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 if (ENABLE_ASAN)
 	message(STATUS "BUILD WITH ADDRESS SANITIZER")
 	set (CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+GCC_COMPILER=/opt/kaylor/data/work/rockchip/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu
+
 set -e
 
 echo "$0 $@"
