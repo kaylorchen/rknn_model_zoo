@@ -16,12 +16,14 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../utils/ utils.out)
 
 set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
 
-file(GLOB SRCS ${CMAKE_CURRENT_SOURCE_DIR}/*.cc)
+file(GLOB SRCS ${
+  CMAKE_CURRENT_SOURCE_DIR}/*.cc)
 
 add_executable(${PROJECT_NAME}
     main.cc
     postprocess.cc
     rknpu2/yolov8.cc
+    fisheye_camera.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
