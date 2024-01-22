@@ -476,7 +476,7 @@ int get_image_size(image_buffer_t* image)
     case IMAGE_FORMAT_GRAY8:
         return image->width * image->height;
     case IMAGE_FORMAT_RGB888:
-        return image->width * image->height * 3;    
+        return image->width * image->height * 3;
     case IMAGE_FORMAT_RGBA8888:
         return image->width * image->height * 4;
     case IMAGE_FORMAT_YUV420SP_NV12:
@@ -485,6 +485,7 @@ int get_image_size(image_buffer_t* image)
     default:
         break;
     }
+  return 0;
 }
 
 static int convert_image_rga(image_buffer_t* src_img, image_buffer_t* dst_img, image_rect_t* src_box, image_rect_t* dst_box, char color)
