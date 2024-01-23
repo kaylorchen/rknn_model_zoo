@@ -21,14 +21,6 @@ if (TARGET_SOC STREQUAL "rv1106" OR TARGET_SOC STREQUAL "rk3588")
     add_definitions(-DLIBRGA_IM2D_HANDLE)
 endif()
 
-# jpeg turbo
-set(JPEG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/jpeg_turbo)
-set(LIBJPEG ${JPEG_PATH}/${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}/libturbojpeg.a )
-set(LIBJPEG_INCLUDES ${JPEG_PATH}/include)
-message(STATUS, "jpeg path is ${JPEG_PATH}")
-include_directories(${LIBJPEG_INCLUDES})
-
-
 set(ENV{PKG_CONFIG_SYSROOT_DIR} ${CMAKE_SYSROOT})
 set(ENV{PKG_CONFIG_PATH} ${CMAKE_SYSROOT}/usr/lib/aarch64-linux-gnu/pkgconfig)
 
@@ -36,6 +28,7 @@ find_package(PkgConfig REQUIRED)
 # Use pkg-config to look for librga
 pkg_check_modules(LIBRGA REQUIRED librga)
 pkg_check_modules(STB REQUIRED stb)
+pkg_check_modules(TURBOJPEG REQUIRED libturbojpeg)
 
 include_directories(${LIBRGA_INCLUDE_DIRS})
 link_directories(${LIBRGA_LIBRARY_DIRS})
@@ -49,12 +42,12 @@ target_include_directories(imageutils PUBLIC
 )
 
 target_link_libraries(imageutils
-    ${LIBJPEG}
+    ${TURBOJPEG_LIBRARIES}
     ${LIBRGA_LIBRARIES}
     ${STB_LIBRARIES}
 )
 target_include_directories(imageutils PUBLIC
     ${STB_INCLUDES}
-    ${LIBJPEG_INCLUDES}
+    ${TURBOJPEG_INCLUDES}
     ${LIBRGA_INCLUDES}
 )
