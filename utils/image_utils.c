@@ -4,17 +4,17 @@
 #include <math.h>
 #include <sys/time.h>
 
-#include "im2d.h"
-#include "drmrga.h"
+#include "rga/im2d.h"
+#include "rga/drmrga.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_NO_THREAD_LOCALS
 #define STBI_ONLY_JPEG
 #define STBI_ONLY_PNG
-#include "stb_image.h"
+#include "stb/stb_image.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
+#include "stb/stb_image_write.h"
 
 #include "turbojpeg.h"
 

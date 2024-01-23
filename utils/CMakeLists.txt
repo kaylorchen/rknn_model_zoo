@@ -21,6 +21,25 @@ if (TARGET_SOC STREQUAL "rv1106" OR TARGET_SOC STREQUAL "rk3588")
     add_definitions(-DLIBRGA_IM2D_HANDLE)
 endif()
 
+# jpeg turbo
+set(JPEG_PATH ../3rdparty/jpeg_turbo)
+#set(LIBJPEG ${JPEG_PATH}/${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}/libturbojpeg.a )
+set(LIBJPEG_INCLUDES ${JPEG_PATH}/include)
+include_directories(${LIBJPEG_INCLUDES})
+
+
+set(ENV{PKG_CONFIG_SYSROOT_DIR} ${CMAKE_SYSROOT})
+set(ENV{PKG_CONFIG_PATH} ${CMAKE_SYSROOT}/usr/lib/aarch64-linux-gnu/pkgconfig)
+
+find_package(PkgConfig REQUIRED)
+# Use pkg-config to look for librga
+pkg_check_modules(LIBRGA REQUIRED librga)
+pkg_check_modules(STB REQUIRED stb)
+
+include_directories(${LIBRGA_INCLUDE_DIRS})
+link_directories(${LIBRGA_LIBRARY_DIRS})
+link_directories(${STB_LIBRARY_DIRS})
+
 add_library(imageutils STATIC
     image_utils.c
 )
@@ -29,8 +48,9 @@ target_include_directories(imageutils PUBLIC
 )
 
 target_link_libraries(imageutils
-    ${LIBJPEG}
+#    ${LIBJPEG}
     ${LIBRGA}
+    ${STB}
 )
 
 target_include_directories(imageutils PUBLIC
