@@ -41,7 +41,6 @@ int main(int argc, char **argv) {
       (cv::Mat_<double>(4, 1) << -0.09556402717747697, 0.012374049436718767,
           -0.010465758469831311, 0.0033159128053917544);
   FisheyeCamera fisheye_camera(0, K, D);
-  std::this_thread::sleep_for(std::chrono::seconds(5));
   auto image = fisheye_camera.GetRgbFrame();
   KAYLORDUT_LOG_INFO("count is {}", image.use_count());
   auto tmp = *image;
