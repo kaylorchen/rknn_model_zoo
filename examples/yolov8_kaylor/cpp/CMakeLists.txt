@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 if (ENABLE_ASAN)
     message(STATUS "BUILD WITH ADDRESS SANITIZER")
@@ -13,7 +14,7 @@ if (ENABLE_ASAN)
     set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
 endif ()
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../3rdparty/ 3rdparty.out)
+#add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../3rdparty/ 3rdparty.out)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../utils/ utils.out)
 
 set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
@@ -35,7 +36,7 @@ target_link_libraries(${PROJECT_NAME}
         fileutils
         imageutils
         imagedrawing
-        ${LIBRKNNRT}
+        rknnrt
         spdlog::spdlog
         systemd
         ${OpenCV_LIBS}

@@ -22,9 +22,10 @@ if (TARGET_SOC STREQUAL "rv1106" OR TARGET_SOC STREQUAL "rk3588")
 endif()
 
 # jpeg turbo
-set(JPEG_PATH ../3rdparty/jpeg_turbo)
-#set(LIBJPEG ${JPEG_PATH}/${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}/libturbojpeg.a )
+set(JPEG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/jpeg_turbo)
+set(LIBJPEG ${JPEG_PATH}/${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}/libturbojpeg.a )
 set(LIBJPEG_INCLUDES ${JPEG_PATH}/include)
+message(STATUS, "jpeg path is ${JPEG_PATH}")
 include_directories(${LIBJPEG_INCLUDES})
 
 
@@ -48,11 +49,10 @@ target_include_directories(imageutils PUBLIC
 )
 
 target_link_libraries(imageutils
-#    ${LIBJPEG}
-    ${LIBRGA}
-    ${STB}
+    ${LIBJPEG}
+    ${LIBRGA_LIBRARIES}
+    ${STB_LIBRARIES}
 )
-
 target_include_directories(imageutils PUBLIC
     ${STB_INCLUDES}
     ${LIBJPEG_INCLUDES}
