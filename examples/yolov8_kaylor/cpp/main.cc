@@ -68,11 +68,11 @@ int main(int argc, char **argv) {
   image_buffer_t src_image;
   memset(&src_image, 0, sizeof(image_buffer_t));
 
-  src_image.width = 640;
-  src_image.height = 640;
+  src_image.width = 1920;
+  src_image.height = 1080;
   src_image.size = src_image.width * src_image.height * 3;
   src_image.format = IMAGE_FORMAT_RGB888;
-  std::shared_ptr<cv::Mat> tmp = fisheye_camera.GetRgbFrame(640);
+  std::shared_ptr<cv::Mat> tmp = fisheye_camera.GetRgbFrame();
   src_image.virt_addr = tmp->ptr();
 
 //    ret = read_image(image_path, &src_image);
