@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "kaylordut/logger.h"
+#include "kaylordut/log/logger.h"
 #include "opencv2/opencv.hpp"
 
 class FisheyeCamera {
