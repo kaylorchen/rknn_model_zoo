@@ -60,8 +60,6 @@ std::shared_ptr<cv::Mat> FisheyeCamera::GetRgbFrame() {
   cv::remap(frame, undistortedImage, map1_, map2_, cv::INTER_LINEAR);
   auto tmp = std::make_shared<cv::Mat>();
   cv::cvtColor(undistortedImage, *tmp, cv::COLOR_BGR2RGB);
-  cv::imwrite("origin.png", frame);
-  cv::imwrite("un.png", undistortedImage);
   return std::move(tmp);
 }
 
@@ -73,7 +71,6 @@ std::shared_ptr<cv::Mat> FisheyeCamera::GetRgbFrame(int &&derired_size) {
     KAYLORDUT_LOG_WARN("frame is empty");
     return nullptr;
   }
-  cv::imwrite("111.png", frame);
   cv::remap(frame, undistortedImage, map1_, map2_, cv::INTER_LINEAR);
   // 计算新的宽度和高度保持相同的宽高比
   int desired_size = 640;

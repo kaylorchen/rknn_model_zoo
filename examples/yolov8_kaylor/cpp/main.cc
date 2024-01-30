@@ -41,10 +41,6 @@ int main(int argc, char **argv) {
       (cv::Mat_<double>(4, 1) << -0.09556402717747697, 0.012374049436718767,
           -0.010465758469831311, 0.0033159128053917544);
   FisheyeCamera fisheye_camera(0, K, D);
-  auto image = fisheye_camera.GetRgbFrame();
-  KAYLORDUT_LOG_INFO("count is {}", image.use_count());
-  auto tmp = *image;
-  cv::imwrite("test.jpg", tmp);
   if (argc != 3) {
     printf("%s <model_path> <image_path>\n", argv[0]);
     return -1;
@@ -62,32 +58,40 @@ int main(int argc, char **argv) {
   ret = init_yolov8_model(model_path, &rknn_app_ctx);
   if (ret != 0) {
     printf("init_yolov8_model fail! ret=%d model_path=%s\n", ret, model_path);
-    goto out;
+    ret = release_yolov8_model(&rknn_app_ctx);
+    if (ret != 0) {
+      printf("release_yolov8_model fail! ret=%d\n", ret);
+    }
+    exit(EXIT_FAILURE);
   }
 
   image_buffer_t src_image;
   memset(&src_image, 0, sizeof(image_buffer_t));
-//
-//  src_image.width = 640;
-//  src_image.height = 640;
-//  src_image.size = src_image.width * src_image.height * 3;
-//  src_image.format = IMAGE_FORMAT_RGB888;
-//  src_image.virt_addr = fisheye_camera.GetRgbFrame(640)->ptr();
-  ret = read_image(image_path, &src_image);
-//  write_image("test.png", &src_image);
 
-    ret = read_image(image_path, &src_image);
-  if (ret != 0) {
-    printf("read image fail! ret=%d image_path=%s\n", ret, image_path);
-    goto out;
-  }
+  src_image.width = 640;
+  src_image.height = 640;
+  src_image.size = src_image.width * src_image.height * 3;
+  src_image.format = IMAGE_FORMAT_RGB888;
+  std::shared_ptr<cv::Mat> tmp = fisheye_camera.GetRgbFrame(640);
+  src_image.virt_addr = tmp->ptr();
+
+//    ret = read_image(image_path, &src_image);
+//  if (ret != 0) {
+//    printf("read image fail! ret=%d image_path=%s\n", ret, image_path);
+//    goto out;
+//  }
 
   object_detect_result_list od_results;
 
   ret = inference_yolov8_model(&rknn_app_ctx, &src_image, &od_results);
   if (ret != 0) {
     printf("init_yolov8_model fail! ret=%d\n", ret);
-    goto out;
+    deinit_post_process();
+    ret = release_yolov8_model(&rknn_app_ctx);
+    if (ret != 0) {
+      printf("release_yolov8_model fail! ret=%d\n", ret);
+    }
+    exit(EXIT_FAILURE);
   }
 
   // 画框和概率
@@ -111,17 +115,11 @@ int main(int argc, char **argv) {
 
   write_image("out.png", &src_image);
 
-out:
-  deinit_post_process();
-
-  ret = release_yolov8_model(&rknn_app_ctx);
-  if (ret != 0) {
-    printf("release_yolov8_model fail! ret=%d\n", ret);
-  }
-
-  if (src_image.virt_addr != NULL) {
-    free(src_image.virt_addr);
-  }
-
+//out:
+//  if (src_image.virt_addr != NULL) {
+//    free(src_image.virt_addr);
+//  }
+//
   return 0;
 }
+
