@@ -17,6 +17,7 @@
 
 #include "common.h"
 #include "rknn_api.h"
+#include "kaylordut/time_duration.h"
 
 typedef struct {
   rknn_context rknn_ctx;

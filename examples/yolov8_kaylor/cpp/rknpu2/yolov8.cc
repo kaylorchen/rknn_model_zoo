@@ -107,11 +107,11 @@ int init_yolov8_model(const char *model_path, rknn_app_context_t *app_ctx) {
 
   app_ctx->io_num = io_num;
   app_ctx->input_attrs =
-      (rknn_tensor_attr *)malloc(io_num.n_input * sizeof(rknn_tensor_attr));
+      (rknn_tensor_attr *) malloc(io_num.n_input * sizeof(rknn_tensor_attr));
   memcpy(app_ctx->input_attrs, input_attrs,
          io_num.n_input * sizeof(rknn_tensor_attr));
   app_ctx->output_attrs =
-      (rknn_tensor_attr *)malloc(io_num.n_output * sizeof(rknn_tensor_attr));
+      (rknn_tensor_attr *) malloc(io_num.n_output * sizeof(rknn_tensor_attr));
   memcpy(app_ctx->output_attrs, output_attrs,
          io_num.n_output * sizeof(rknn_tensor_attr));
 
@@ -174,7 +174,7 @@ int inference_yolov8_model(rknn_app_context_t *app_ctx, image_buffer_t *img,
   dst_img.height = app_ctx->model_height;
   dst_img.format = IMAGE_FORMAT_RGB888;
   dst_img.size = get_image_size(&dst_img);
-  dst_img.virt_addr = (unsigned char *)malloc(dst_img.size);
+  dst_img.virt_addr = (unsigned char *) malloc(dst_img.size);
   if (dst_img.virt_addr == NULL) {
     printf("malloc buffer size:%d fail!\n", dst_img.size);
     return -1;
@@ -203,7 +203,10 @@ int inference_yolov8_model(rknn_app_context_t *app_ctx, image_buffer_t *img,
 
   // Run
   printf("rknn_run\n");
+  TimeDuration time_duration;
   ret = rknn_run(app_ctx->rknn_ctx, nullptr);
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(time_duration.DurationSinceLastTime());
+  printf("duration is %ldms\n", duration.count());
   if (ret < 0) {
     printf("rknn_run fail! ret=%d\n", ret);
     return -1;
@@ -229,7 +232,7 @@ int inference_yolov8_model(rknn_app_context_t *app_ctx, image_buffer_t *img,
   // Remeber to release rknn output
   rknn_outputs_release(app_ctx->rknn_ctx, app_ctx->io_num.n_output, outputs);
 
-out:
+  out:
   if (dst_img.virt_addr != NULL) {
     free(dst_img.virt_addr);
   }
