@@ -97,9 +97,9 @@ std::shared_ptr<cv::Mat> FisheyeCamera::GetRgbFrame(int &&derired_size) {
   // 粘贴缩放后的图像到中心
   scaledImage.copyTo(squareImage(
       cv::Rect(x_offset, y_offset, scaledImage.cols, scaledImage.rows)));
-  auto tmp = std::make_shared<cv::Mat>(squareImage.rows, squareImage.cols, squareImage.type());
+  auto tmp = std::make_shared<cv::Mat>(squareImage.rows, squareImage.cols,
+                                       squareImage.type());
   cv::cvtColor(squareImage, *tmp, cv::COLOR_BGR2RGB);
-
 
   return std::move(tmp);
 }
