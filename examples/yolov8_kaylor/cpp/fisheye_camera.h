@@ -12,7 +12,7 @@ class FisheyeCamera {
   ~FisheyeCamera();
   void Refresh();
   std::shared_ptr<cv::Mat> GetRgbFrame();
-  std::shared_ptr<cv::Mat> GetRgbFrame(int &&derired_size);
+  std::shared_ptr<cv::Mat> GetRgbFrame(int &&desired_size);
 
  private:
   cv::VideoCapture capture_;

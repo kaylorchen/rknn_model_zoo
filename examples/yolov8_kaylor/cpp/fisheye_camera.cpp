@@ -63,7 +63,7 @@ std::shared_ptr<cv::Mat> FisheyeCamera::GetRgbFrame() {
   return std::move(tmp);
 }
 
-std::shared_ptr<cv::Mat> FisheyeCamera::GetRgbFrame(int &&derired_size) {
+std::shared_ptr<cv::Mat> FisheyeCamera::GetRgbFrame(int &&desired_size) {
   cv::Mat frame;
   cv::Mat undistortedImage;
   capture_ >> frame;
@@ -73,7 +73,6 @@ std::shared_ptr<cv::Mat> FisheyeCamera::GetRgbFrame(int &&derired_size) {
   }
   cv::remap(frame, undistortedImage, map1_, map2_, cv::INTER_LINEAR);
   // 计算新的宽度和高度保持相同的宽高比
-  int desired_size = 640;
   int new_width, new_height;
   if (undistortedImage.rows > undistortedImage.cols) {
     new_height = desired_size;

@@ -67,57 +67,53 @@ int main(int argc, char **argv) {
   image_buffer_t src_image;
   memset(&src_image, 0, sizeof(image_buffer_t));
 
-  src_image.width = 1920;
-  src_image.height = 1080;
+  src_image.width = 640;
+  src_image.height = 640;
   src_image.size = src_image.width * src_image.height * 3;
   src_image.format = IMAGE_FORMAT_RGB888;
-  std::shared_ptr<cv::Mat> tmp = fisheye_camera.GetRgbFrame();
-  src_image.virt_addr = tmp->ptr();
+  while(true) {
+    std::shared_ptr<cv::Mat> tmp = fisheye_camera.GetRgbFrame(640);
+    src_image.virt_addr = tmp->ptr();
 
-  //    ret = read_image(image_path, &src_image);
-  //  if (ret != 0) {
-  //    printf("read image fail! ret=%d image_path=%s\n", ret, image_path);
-  //    goto out;
-  //  }
+    object_detect_result_list od_results;
 
-  object_detect_result_list od_results;
-
-  ret = inference_yolov8_model(&rknn_app_ctx, &src_image, &od_results);
-  if (ret != 0) {
-    printf("init_yolov8_model fail! ret=%d\n", ret);
-    deinit_post_process();
-    ret = release_yolov8_model(&rknn_app_ctx);
+    ret = inference_yolov8_model(&rknn_app_ctx, &src_image, &od_results);
     if (ret != 0) {
-      printf("release_yolov8_model fail! ret=%d\n", ret);
+      printf("init_yolov8_model fail! ret=%d\n", ret);
+      deinit_post_process();
+      ret = release_yolov8_model(&rknn_app_ctx);
+      if (ret != 0) {
+        printf("release_yolov8_model fail! ret=%d\n", ret);
+      }
+      exit(EXIT_FAILURE);
     }
-    exit(EXIT_FAILURE);
+
+    // 画框和概率
+    char text[256];
+    for (int i = 0; i < od_results.count; i++) {
+      object_detect_result *det_result = &(od_results.results[i]);
+      printf("%s @ (%d %d %d %d) %.3f\n", coco_cls_to_name(det_result->cls_id),
+             det_result->box.left, det_result->box.top, det_result->box.right,
+             det_result->box.bottom, det_result->prop);
+      int x1 = det_result->box.left;
+      int y1 = det_result->box.top;
+      int x2 = det_result->box.right;
+      int y2 = det_result->box.bottom;
+
+      draw_rectangle(&src_image, x1, y1, x2 - x1, y2 - y1, COLOR_BLUE, 3);
+
+      sprintf(text, "%s %.1f%%", coco_cls_to_name(det_result->cls_id),
+              det_result->prop * 100);
+      draw_text(&src_image, text, x1, y1 - 20, COLOR_RED, 10);
+    }
+    cv::Mat rgb_mat;
+    cv::cvtColor(*tmp, rgb_mat, cv::COLOR_RGB2BGR);
+    cv::imshow("result", rgb_mat);
+    if (cv::waitKey(1) >= 0) {
+      break;
+    }
   }
+//  write_image("out.png", &src_image);
 
-  // 画框和概率
-  char text[256];
-  for (int i = 0; i < od_results.count; i++) {
-    object_detect_result *det_result = &(od_results.results[i]);
-    printf("%s @ (%d %d %d %d) %.3f\n", coco_cls_to_name(det_result->cls_id),
-           det_result->box.left, det_result->box.top, det_result->box.right,
-           det_result->box.bottom, det_result->prop);
-    int x1 = det_result->box.left;
-    int y1 = det_result->box.top;
-    int x2 = det_result->box.right;
-    int y2 = det_result->box.bottom;
-
-    draw_rectangle(&src_image, x1, y1, x2 - x1, y2 - y1, COLOR_BLUE, 3);
-
-    sprintf(text, "%s %.1f%%", coco_cls_to_name(det_result->cls_id),
-            det_result->prop * 100);
-    draw_text(&src_image, text, x1, y1 - 20, COLOR_RED, 10);
-  }
-
-  write_image("out.png", &src_image);
-
-  // out:
-  //   if (src_image.virt_addr != NULL) {
-  //     free(src_image.virt_addr);
-  //   }
-  //
   return 0;
 }
