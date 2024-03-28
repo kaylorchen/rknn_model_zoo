@@ -542,16 +542,19 @@ static int process_i8(rknn_output *all_input, int input_id, int grid_h, int grid
                       rknn_app_context_t *app_ctx)
 {
     int validCount = 0;
-    int grid_len = grid_h * grid_w;
+    int grid_len = grid_h * grid_w; // 这个张量的H*W，用来记录每一个通道占用内存的长度
 
     // Skip if input_id is not 0, 4, 8, or 12
     if (input_id % 4 != 0)
     {
         return validCount;
     }
-
+    // 最后的这一层是跟掩膜相关，处理方式与其他不一样
     if (input_id == 12)
-    {
+    {/**
+     * 获取第12层的输出数据，然后把量化后的数据还原到为原来的浮点型
+     * 需要注意的是，这里没有使用比例关系，因为程序需要时INT的数据，不需要0~1的float数据 
+     */
         int8_t *input_proto = (int8_t *)all_input[input_id].buf;
         int32_t zp_proto = app_ctx->output_attrs[input_id].zp;
         for (int i = 0; i < PROTO_CHANNEL * PROTO_HEIGHT * PROTO_WEIGHT; i++)
@@ -579,7 +582,7 @@ static int process_i8(rknn_output *all_input, int input_id, int grid_h, int grid
     int8_t *seg_tensor = (int8_t *)all_input[input_id + 3].buf;
     int32_t seg_zp = app_ctx->output_attrs[input_id + 3].zp;
     float seg_scale = app_ctx->output_attrs[input_id + 3].scale;
-
+    // 计算得分阈值的量化之后的数值
     int8_t score_thres_i8 = qnt_f32_to_affine(threshold, score_zp, score_scale);
     int8_t score_sum_thres_i8 = qnt_f32_to_affine(threshold, score_sum_zp, score_sum_scale);
 
@@ -596,6 +599,7 @@ static int process_i8(rknn_output *all_input, int input_id, int grid_h, int grid
             // for quick filtering through "score sum"
             if (score_sum_tensor != nullptr)
             {
+                // 如果得分总和少于设定阈值，直接放弃本次的目标
                 if (score_sum_tensor[offset] < score_sum_thres_i8)
                 {
                     continue;
@@ -604,21 +608,22 @@ static int process_i8(rknn_output *all_input, int input_id, int grid_h, int grid
 
             int8_t max_score = -score_zp;
             for (int c = 0; c < OBJ_CLASS_NUM; c++)
-            {
+            {   // 这里是为了保留最大的概率类别
                 if ((score_tensor[offset] > score_thres_i8) && (score_tensor[offset] > max_score))
                 {
                     max_score = score_tensor[offset];
                     max_class_id = c;
                 }
-                offset += grid_len;
+                offset += grid_len; // 计算 i * grid_w + j 这个像素点下，下一个类别偏移量，所以加上一个通道的长度即可
             }
 
-            // compute box
+            // compute box， 只有最大概率大于阈值，才判定有目标存在
             if (max_score > score_thres_i8)
             {
 
                 for (int k = 0; k < PROTO_CHANNEL; k++)
                 {
+                    // 数据转换为int8， 因为数据是NCHW，所以步长需要grid_len才能拿到数据
                     int8_t seg_element_i8 = in_ptr_seg[(k)*grid_len] - seg_zp;
                     segments.push_back(seg_element_i8);
                 }
@@ -627,10 +632,11 @@ static int process_i8(rknn_output *all_input, int input_id, int grid_h, int grid
                 float box[4];
                 float before_dfl[dfl_len * 4];
                 for (int k = 0; k < dfl_len * 4; k++)
-                {
+                {   // 反量化拿到浮点型数据
                     before_dfl[k] = deqnt_affine_to_f32(box_tensor[offset], box_zp, box_scale);
                     offset += grid_len;
                 }
+                // 通过dfl计算出box的坐标
                 compute_dfl(before_dfl, dfl_len, box);
 
                 float x1, y1, x2, y2, w, h;
@@ -644,7 +650,7 @@ static int process_i8(rknn_output *all_input, int input_id, int grid_h, int grid
                 boxes.push_back(y1);
                 boxes.push_back(w);
                 boxes.push_back(h);
-
+                // 保存该类的概率和类id 
                 objProbs.push_back(deqnt_affine_to_f32(max_score, score_zp, score_scale));
                 classId.push_back(max_class_id);
                 validCount++;
@@ -763,26 +769,29 @@ int post_process(rknn_app_context_t *app_ctx, rknn_output *outputs, letterbox_t 
     float proto[PROTO_CHANNEL * PROTO_HEIGHT * PROTO_WEIGHT];
     std::vector<float> filterSegments_by_nms;
 
-    int model_in_w = app_ctx->model_width;
-    int model_in_h = app_ctx->model_height;
+    int model_in_w = app_ctx->model_width; // 获取模型的width
+    int model_in_h = app_ctx->model_height; // 获取模型的height
 
-    int validCount = 0;
-    int stride = 0;
+    int validCount = 0; // 记录有效的输出
+    int stride = 0; // 活动窗口步长
     int grid_h = 0;
     int grid_w = 0;
 
-    memset(od_results, 0, sizeof(object_detect_result_list));
+    memset(od_results, 0, sizeof(object_detect_result_list)); // 把输出结果列表置零
 
     int dfl_len = app_ctx->output_attrs[0].dims[1] / 4;
+    /***
+     * 结果输出有三种输出80x80 40x40 20x20，这里取模是为了确定每种输出拥有多少层输出
+    */
     int output_per_branch = app_ctx->io_num.n_output / 3; // default 3 branch
 
     // process the outputs of rknn
     for (int i = 0; i < 13; i++)
     {
-        grid_h = app_ctx->output_attrs[i].dims[2];
-        grid_w = app_ctx->output_attrs[i].dims[3];
-        stride = model_in_h / grid_h;
-
+        grid_h = app_ctx->output_attrs[i].dims[2]; //  这一层输出的高度
+        grid_w = app_ctx->output_attrs[i].dims[3]; // 这一层输出的宽度
+        stride = model_in_h / grid_h; // 模型边长对输出层取模等于滑动步长
+        // 如果量化了，使用i8的处理方式
         if (app_ctx->is_quant)
         {
             validCount += process_i8(outputs, i, grid_h, grid_w, model_in_h, model_in_w, stride, dfl_len, filterBoxes, filterSegments, proto, objProbs,
