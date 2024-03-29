@@ -118,19 +118,30 @@ static float CalculateOverlap(float xmin0, float ymin0, float xmax0, float ymax0
     float u = (xmax0 - xmin0 + 1.0) * (ymax0 - ymin0 + 1.0) + (xmax1 - xmin1 + 1.0) * (ymax1 - ymin1 + 1.0) - i;
     return u <= 0.f ? 0.f : (i / u);
 }
-
+/***
+ * validCount 有效的count计数
+ * outputLocations 已经经过降序排序的得分概率
+ * classIds 没有经过降序排序的种类id
+ * order 跟outputLocations对应的 index下标数组
+ * filterId classIds的某一个元素
+ * threshold nms的阈值
+*/
 static int nms(int validCount, std::vector<float> &outputLocations, std::vector<int> classIds, std::vector<int> &order,
                int filterId, float threshold)
 {
     for (int i = 0; i < validCount; ++i)
     {
+        // 检索与filterId一样的元素，如果不一样，就检索下一个
+        // 假设order[i]已经被置为-1， 直接忽略
         if (order[i] == -1 || classIds[i] != filterId)
         {
             continue;
         }
+        // 获取得分概率数组的元素下标
         int n = order[i];
         for (int j = i + 1; j < validCount; ++j)
         {
+            // 这里比较的是本次外循环的i右边的元素
             int m = order[j];
             if (m == -1 || classIds[i] != filterId)
             {
@@ -145,9 +156,9 @@ static int nms(int validCount, std::vector<float> &outputLocations, std::vector<
             float ymin1 = outputLocations[m * 4 + 1];
             float xmax1 = outputLocations[m * 4 + 0] + outputLocations[m * 4 + 2];
             float ymax1 = outputLocations[m * 4 + 1] + outputLocations[m * 4 + 3];
-
+            // 计算这两个种类的矩形框的重合程度
             float iou = CalculateOverlap(xmin0, ymin0, xmax0, ymax0, xmin1, ymin1, xmax1, ymax1);
-
+            // 如果重合程度比阈值高，那么就把j这个框作为无效数据，即小概率的种类给大概率的种类让步
             if (iou > threshold)
             {
                 order[j] = -1;
@@ -309,10 +320,12 @@ static void crop_mask(uint8_t *seg_mask, uint8_t *all_mask_in_one, float *boxes,
         {
             for (int j = 0; j < width; j++)
             {
+                // 判断该点在矩形框内
                 if (j >= x1 && j < x2 && i >= y1 && i < y2)
                 {
                     if (all_mask_in_one[i * width + j] == 0)
                     {
+                        // seg_mask只有 0或者1 ， cls_id因为可能存在0值，所以 +1 避免结果都为0
                         all_mask_in_one[i * width + j] = seg_mask[b * width * height + i * width + j] * (cls_id[b] + 1);
                     }
                 }
@@ -814,13 +827,13 @@ int post_process(rknn_app_context_t *app_ctx, rknn_output *outputs, letterbox_t 
     {
         indexArray.push_back(i);
     }
-
+    // 这里快排把识别的种类概率从大到小排列，对应的index也跟着排列
     quick_sort_indice_inverse(objProbs, 0, validCount - 1, indexArray);
 
     std::set<int> class_set(std::begin(classId), std::end(classId));
 
     for (auto c : class_set)
-    {
+    {   // 把重合度大于设定阈值的框给标记去掉
         nms(validCount, filterBoxes, classId, indexArray, c, nms_threshold);
     }
 
@@ -829,12 +842,13 @@ int post_process(rknn_app_context_t *app_ctx, rknn_output *outputs, letterbox_t 
 
     for (int i = 0; i < validCount; ++i)
     {
+        // 上一步中已经标记了无效的重叠框的下标为-1
         if (indexArray[i] == -1 || last_count >= OBJ_NUMB_MAX_SIZE)
         {
             continue;
         }
         int n = indexArray[i];
-
+        // 获取box， 种类id， 概率分数
         float x1 = filterBoxes[n * 4 + 0];
         float y1 = filterBoxes[n * 4 + 1];
         float x2 = x1 + filterBoxes[n * 4 + 2];
@@ -844,6 +858,7 @@ int post_process(rknn_app_context_t *app_ctx, rknn_output *outputs, letterbox_t 
 
         for (int k = 0; k < PROTO_CHANNEL; k++)
         {
+            // 获取相对应的分割的向量
             filterSegments_by_nms.push_back(filterSegments[n * PROTO_CHANNEL + k]);
         }
 
@@ -861,6 +876,7 @@ int post_process(rknn_app_context_t *app_ctx, rknn_output *outputs, letterbox_t 
     int boxes_num = od_results->count;
 
     // compute the mask (binary matrix) through Matmul
+    // 计算掩膜矩阵，最后结果得到 boxes_num 个掩膜矩阵
     int ROWS_A = boxes_num;
     int COLS_A = PROTO_CHANNEL;
     int COLS_B = PROTO_HEIGHT * PROTO_WEIGHT;
@@ -874,11 +890,12 @@ int post_process(rknn_app_context_t *app_ctx, rknn_output *outputs, letterbox_t 
         matmul_by_npu_fp16(filterSegments_by_nms, proto, matmul_out, ROWS_A, COLS_A, COLS_B, app_ctx);
     }
 
-    float filterBoxes_by_nms[boxes_num * 4];
+    float filterBoxes_by_nms[boxes_num * 4]; // 记录每个box的坐标
     int cls_id[boxes_num];
     for (int i = 0; i < boxes_num; i++)
     {
         // for crop_mask
+        // 掩膜层的分辨率是 160x160
         // 640 / 160 = 4.0
         filterBoxes_by_nms[i * 4 + 0] = od_results->results[i].box.left / 4.0;   // x1;
         filterBoxes_by_nms[i * 4 + 1] = od_results->results[i].box.top / 4.0;    // y1;
@@ -887,6 +904,7 @@ int post_process(rknn_app_context_t *app_ctx, rknn_output *outputs, letterbox_t 
         cls_id[i] = od_results->results[i].cls_id;
 
         // get real box
+        // 这里是把640x640的坐标映射返回到原始输入图像的坐标
         od_results->results[i].box.left = box_reverse(od_results->results[i].box.left, model_in_w, letter_box->x_pad, letter_box->scale);
         od_results->results[i].box.top = box_reverse(od_results->results[i].box.top, model_in_h, letter_box->y_pad, letter_box->scale);
         od_results->results[i].box.right = box_reverse(od_results->results[i].box.right, model_in_w, letter_box->x_pad, letter_box->scale);
@@ -895,6 +913,7 @@ int post_process(rknn_app_context_t *app_ctx, rknn_output *outputs, letterbox_t 
 
     // crop seg outside box
     uint8_t all_mask_in_one[PROTO_HEIGHT * PROTO_WEIGHT] = {0};
+    // 把所有的掩膜数据写到一张图上
     crop_mask(matmul_out, all_mask_in_one, filterBoxes_by_nms, boxes_num, cls_id, PROTO_HEIGHT, PROTO_WEIGHT);
 
     // get real mask
@@ -906,6 +925,7 @@ int post_process(rknn_app_context_t *app_ctx, rknn_output *outputs, letterbox_t 
     int ori_in_width = (model_in_w - letter_box->x_pad * 2) / letter_box->scale;
     uint8_t *cropped_seg_mask = (uint8_t *)malloc(cropped_height * cropped_width * sizeof(uint8_t));
     uint8_t *real_seg_mask = (uint8_t *)malloc(ori_in_height * ori_in_width * sizeof(uint8_t));
+    // 还原到原来的图像分辨率，结果保存到real_seg_mask中，使用od_results->results_seg[0].seg_mask记录
     seg_reverse(all_mask_in_one, cropped_seg_mask, real_seg_mask,
                 model_in_h, model_in_w, PROTO_HEIGHT, PROTO_WEIGHT, cropped_height, cropped_width, ori_in_height, ori_in_width, y_pad, x_pad);
     od_results->results_seg[0].seg_mask = real_seg_mask;
